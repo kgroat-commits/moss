@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Der ROI von Moss</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --moss-dark:    #002414;
+      --moss-neon:    #B9FF3F;
+      --moss-neon-dim:#70D30F;
+      --moss-mid:     #345142;
+      --card-bg:      #F5F7F5;
+      --card-border:  #D8E0D8;
+      --icon-bg:      #002414;
+      --slide-bg:     #ffffff;
+      --text-primary: #131212;
+      --text-mid:     #4A4A4A;
+      --text-muted:   #A8A8A8;
+      --badge-locked: #F2F2F2;
+      --badge-locked-color: #888;
+      --badge-live:   #F1FFD8;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #e8e8e8;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 32px 16px 48px;
+    }
+
+    .slide {
+      width: 100%;
+      max-width: 960px;
+      background: var(--slide-bg);
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.18);
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 16px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      padding: 16px 20px 14px;
+      background: var(--slide-bg);
+      border-bottom: 1px solid #eee;
+    }
+    .control-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 180px; }
+    .control-label { font-size: 11px; color: var(--text-mid); }
+    .control-row-inner { display: flex; align-items: center; gap: 10px; }
+    .control-value { font-size: 12px; font-weight: 500; color: var(--text-primary); min-width: 60px; text-align: right; }
+
+    input[type="range"] {
+      flex: 1; -webkit-appearance: none; appearance: none;
+      height: 3px; border-radius: 2px; background: #ccc; outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+      background: var(--moss-dark); border: 2.5px solid var(--moss-neon); cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--moss-dark); border: 2.5px solid var(--moss-neon); cursor: pointer;
+    }
+
+    .roi-header {
+      background: var(--moss-dark);
+      padding: 0 20px;
+      height: 64px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+    }
+    .roi-header-left { display: flex; align-items: center; }
+    .breadcrumb { display: flex; align-items: center; gap: 8px; }
+    .breadcrumb-year { font-size: 11px; font-weight: 600; color: var(--moss-neon); letter-spacing: 0.3px; }
+    .breadcrumb-label { font-size: 11px; font-weight: 400; color: rgba(255,255,255,0.45); letter-spacing: 0.8px; }
+    .roi-title { font-size: 22px; font-weight: 600; color: #fff; letter-spacing: -0.2px; text-align: center; }
+    .roi-subtitle { font-size: 12px; color: var(--moss-neon); font-style: italic; text-align: right; }
+
+    .neon-rule { height: 3px; background: var(--moss-neon); }
+
+    .cards-area { padding: 16px; background: var(--slide-bg); }
+    .cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    @media (max-width: 600px) { .cards-grid { grid-template-columns: 1fr; } }
+
+    .roi-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; overflow: hidden; }
+    .card-neon-bar { height: 3px; background: var(--moss-neon); }
+    .card-inner { padding: 14px 16px 12px; }
+    .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .card-icon { width: 32px; height: 32px; border-radius: 50%; background: var(--icon-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .card-icon svg { width: 16px; height: 16px; stroke: var(--moss-neon); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .card-label { font-size: 10px; font-weight: 600; color: var(--moss-mid); letter-spacing: 1px; text-transform: uppercase; }
+    .card-number { font-size: 30px; font-weight: 600; color: var(--text-primary); line-height: 1.1; margin-bottom: 3px; white-space: nowrap; }
+    .card-unit { font-size: 11px; color: var(--text-muted); font-style: italic; margin-bottom: 10px; }
+    .card-divider { border: none; border-top: 1px solid var(--card-border); margin: 8px 0; }
+    .card-body { font-size: 11px; color: var(--text-mid); line-height: 1.6; }
+    .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; border-radius: 4px; padding: 3px 8px; margin-top: 8px; }
+    .badge svg { width: 10px; height: 10px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .badge-locked { background: var(--badge-locked); color: var(--badge-locked-color); }
+    .badge-live   { background: var(--badge-live); color: var(--moss-neon-dim); }
+
+    .footer-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 16px; gap: 12px; flex-wrap: wrap; }
+    .footer-note { font-size: 11px; color: var(--text-muted); font-style: italic; }
+    .copy-btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: 12px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+      background: var(--moss-dark); color: var(--moss-neon);
+      border: none; border-radius: 6px; padding: 9px 18px;
+      cursor: pointer; transition: opacity 0.15s; white-space: nowrap;
+    }
+    .copy-btn:hover { opacity: 0.85; }
+    .copy-btn.copied { background: var(--moss-mid); color: #fff; }
+    .copy-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  </style>
+</head>
+<body>
+<div class="slide">
+
+  <!-- Controls -->
+  <div class="controls-row">
+    <div class="control-group">
+      <span class="control-label">Rechnungen / Transaktionen pro Monat</span>
+      <div class="control-row-inner">
+        <input type="range" min="50" max="2000" step="50" value="500" id="invoices" oninput="update()">
+        <span class="control-value" id="invoices-out">500</span>
+      </div>
+    </div>
+    <div class="control-group">
+      <span class="control-label">Durchschnittlicher Transaktionswert</span>
+      <div class="control-row-inner">
+        <input type="range" min="50" max="2000" step="50" value="250" id="txval" oninput="update()">
+        <span class="control-value" id="txval-out">€250</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="roi-header">
+    <div class="roi-header-left">
+      <div class="breadcrumb">
+        <span class="breadcrumb-year">2026</span>
+        <span class="breadcrumb-label">MOSS COMMERCIAL PROPOSAL</span>
+      </div>
+    </div>
+    <span class="roi-title">Der ROI von Moss</span>
+    <span class="roi-subtitle">Durchschnittswerte aus verifizierten Kundenergebnissen</span>
+  </div>
+  <div class="neon-rule"></div>
+
+  <!-- Cards -->
+  <div class="cards-area">
+    <div class="cards-grid">
+
+      <div class="roi-card">
+        <div class="card-neon-bar"></div>
+        <div class="card-inner">
+          <div class="card-header">
+            <div class="card-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <span class="card-label">Zeitersparnis</span>
+          </div>
+          <div class="card-number" id="time-saved">10–16</div>
+          <div class="card-unit">Std. gespart / Monat (&#216;)</div>
+          <hr class="card-divider">
+          <div class="card-body" id="time-body">Pro 100 verarbeiteter Rechnungen/Transaktionen sparen Kunden typischerweise 10–16 Stunden pro Monat durch: Wegfall von Belegkontrolle und Nachfassaktionen, manuelle Dateneingabe und Codierung, Abstimmungsaufwand sowie Rechnungsverarbeitungs-Workflows.</div>
+          <span class="badge badge-live"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> passt sich dem Volumen an</span>
+        </div>
+      </div>
+
+      <div class="roi-card">
+        <div class="card-neon-bar"></div>
+        <div class="card-inner">
+          <div class="card-header">
+            <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <span class="card-label">Personalkosten gespart</span>
+          </div>
+          <div class="card-number" id="headcount-val">€10.000–20.000</div>
+          <div class="card-unit">Kosteneinsparung / Jahr (&#216;)</div>
+          <hr class="card-divider">
+          <div class="card-body">Vermeidung von 0,5–1,0 zusätzlichen Vollzeitstellen. Die typische ROI-Geschichte lautet: &#8222;Wir mussten keine weitere Finanzperson einstellen.&#8220;</div>
+          <span class="badge badge-locked"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> fester Benchmark</span>
+        </div>
+      </div>
+
+      <div class="roi-card">
+        <div class="card-neon-bar"></div>
+        <div class="card-inner">
+          <div class="card-header">
+            <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+            <span class="card-label">Vorsteuer gesichert</span>
+          </div>
+          <div class="card-number" id="vat-val">€800–€1.500</div>
+          <div class="card-unit">Vorsteuerausfall gestoppt / Monat (&#216;)</div>
+          <hr class="card-divider">
+          <div class="card-body" id="vat-body">Basierend auf €250 durchschnittlichem Transaktionswert, ~19% MwSt. und 0,5–1,5% Verlustrate bei nicht erfassten Transaktionen. Echtzeit-Erfassung schließt die Lücke.</div>
+          <span class="badge badge-live"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> passt sich dem Wert an</span>
+        </div>
+      </div>
+
+      <div class="roi-card">
+        <div class="card-neon-bar"></div>
+        <div class="card-inner">
+          <div class="card-header">
+            <div class="card-icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+            <span class="card-label">Effizienzsteigerung</span>
+          </div>
+          <div class="card-number">75%</div>
+          <div class="card-unit">Effizienzsteigerung (&#216;)</div>
+          <hr class="card-divider">
+          <div class="card-body">Reduktion der Rechnungsverarbeitungszeit. Hive (6 Standorte, 6 Länder) schloss seinen Monat 2 Wochen schneller nach der Einführung von Moss.</div>
+          <span class="badge badge-locked"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> fester Benchmark</span>
+        </div>
+      </div>
+
+      <div class="roi-card">
+        <div class="card-neon-bar"></div>
+        <div class="card-inner">
+          <div class="card-header">
+            <div class="card-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/></svg></div>
+            <span class="card-label">Abschlussgeschwindigkeit</span>
+          </div>
+          <div class="card-number">2–3</div>
+          <div class="card-unit">Tage bis zum Abschluss (&#216;)</div>
+          <hr class="card-divider">
+          <div class="card-body">Die meisten Finanzteams benötigen 2–3 Wochen für den Monatsabschluss ohne Automatisierung. Moss reduziert dies typischerweise auf 2–3 Tage, eine Zeitersparnis von ca. 85–90% im Monatsabschlussprozess.</div>
+          <span class="badge badge-locked"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> fester Benchmark</span>
+        </div>
+      </div>
+
+      <div class="roi-card">
+        <div class="card-neon-bar"></div>
+        <div class="card-inner">
+          <div class="card-header">
+            <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <span class="card-label">Belegkonformität</span>
+          </div>
+          <div class="card-number">90%+</div>
+          <div class="card-unit">Belegerfassungsquote (&#216;)</div>
+          <hr class="card-divider">
+          <div class="card-body">Ausgehend von einer Basis von 40–60%. Finanzteams müssen nur noch ~10% statt der Hälfte aller Belege nachfordern. Der Monatsabschluss verzögert sich nicht mehr und Vorsteuererstattungsmöglichkeiten werden voll ausgeschöpft.</div>
+          <span class="badge badge-locked"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> fester Benchmark</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="footer-row">
+      <p class="footer-note">Interaktive Werte sind Schätzungen auf Basis verifizierter Kundendurchschnitte. Feste Benchmarks basieren auf gesperrten Kundendaten.</p>
+      <button class="copy-btn" id="copy-btn" onclick="copyROI()">
+        <svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+        Zusammenfassung kopieren
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function fmt(n) {
+    return '\u20ac' + Math.round(n).toLocaleString('de-DE');
+  }
+
+  function update() {
+    const invoices = parseInt(document.getElementById('invoices').value);
+    const txval    = parseInt(document.getElementById('txval').value);
+
+    document.getElementById('invoices-out').textContent = invoices.toLocaleString('de-DE');
+    document.getElementById('txval-out').textContent    = fmt(txval);
+
+    const ratio  = invoices / 100;
+    const tsLow  = Math.round(ratio * 10);
+    const tsHigh = Math.round(ratio * 16);
+    document.getElementById('time-saved').textContent = tsLow + '\u2013' + tsHigh;
+    document.getElementById('time-body').textContent  =
+      'Pro ' + invoices.toLocaleString('de-DE') + ' Rechnungen/Monat sparen Kunden typischerweise ' +
+      tsLow + '\u2013' + tsHigh + ' Std./Monat durch: Wegfall von Belegkontrolle und Nachfassaktionen, manuelle Dateneingabe und Codierung, Abstimmungsaufwand sowie Rechnungsverarbeitungs-Workflows.';
+
+    const vatLow  = Math.round(invoices * txval * 0.19 * 0.005);
+    const vatHigh = Math.round(invoices * txval * 0.19 * 0.015);
+    document.getElementById('vat-val').textContent  = fmt(vatLow) + '\u2013' + fmt(vatHigh);
+    document.getElementById('vat-body').textContent =
+      'Basierend auf ' + fmt(txval) + ' durchschnittlichem Transaktionswert, ~19% MwSt. und 0,5\u20131,5% Verlustrate bei nicht erfassten Transaktionen. Echtzeit-Erfassung schlie\u00dft die L\u00fccke.';
+
+    const hcEl = document.getElementById('headcount-val');
+    hcEl.textContent = fmt(10000) + '\u201320.000';
+  }
+
+  function copyROI() {
+    const invoices = parseInt(document.getElementById('invoices').value);
+    const txval    = parseInt(document.getElementById('txval').value);
+    const ratio    = invoices / 100;
+    const tsLow    = Math.round(ratio * 10);
+    const tsHigh   = Math.round(ratio * 16);
+    const vatLow   = Math.round(invoices * txval * 0.19 * 0.005);
+    const vatHigh  = Math.round(invoices * txval * 0.19 * 0.015);
+
+    const text =
+      'Der ROI von Moss\n' +
+      'Basierend auf ' + invoices.toLocaleString('de-DE') + ' Rechnungen/Monat bei ' + fmt(txval) + ' durchschnittlichem Transaktionswert\n\n' +
+      'Zeitersparnis: ' + tsLow + '\u2013' + tsHigh + ' Std./Monat\n' +
+      'Personalkosten gespart: ' + fmt(10000) + '\u201320.000/Jahr\n' +
+      'Vorsteuerausfall gestoppt: ' + fmt(vatLow) + '\u2013' + fmt(vatHigh) + '/Monat\n' +
+      'Effizienzsteigerung: 75% (fester Benchmark)\n' +
+      'Abschlussgeschwindigkeit: 2\u20133 Tage (fester Benchmark)\n' +
+      'Belegerfassungsquote: 90%+ (fester Benchmark)\n\n' +
+      'Werte basieren auf verifizierten Durchschnittswerten aus Moss-Kundenergebnissen.';
+
+    navigator.clipboard.writeText(text).then(function() {
+      const btn = document.getElementById('copy-btn');
+      btn.classList.add('copied');
+      btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><polyline points="20 6 9 17 4 12"/></svg> Kopiert!';
+      setTimeout(function() {
+        btn.classList.remove('copied');
+        btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg> Zusammenfassung kopieren';
+      }, 2000);
+    });
+  }
+
+  update();
+</script>
+</body>
+</html>
