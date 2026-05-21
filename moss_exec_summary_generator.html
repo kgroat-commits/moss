@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moss — Exec Summary Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --dark:#002414;
+  --neon:#B9FF3F;
+  --neon-dim:#70D30F;
+  --mid:#345142;
+  --card:#F5F7F5;
+  --border:#D8E0D8;
+  --text:#131212;
+  --muted:#6B7F73;
+  --white:#fff;
+  --danger:#FF4444;
+  --warn:#FFB800;
+}
+
+body{
+  font-family:'DM Sans',sans-serif;
+  background:#F0F2EF;
+  color:var(--text);
+  min-height:100vh;
+}
+
+/* ── HEADER ─────────────────────────────── */
+.app-header{
+  background:var(--dark);
+  padding:0 32px;
+  height:56px;
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  gap:20px;
+  position:sticky;
+  top:0;
+  z-index:100;
+}
+.logo{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--white);letter-spacing:-0.5px;}
+.logo span{color:var(--neon);}
+.header-title{font-size:12px;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;}
+.neon-dot{width:8px;height:8px;border-radius:50%;background:var(--neon);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.6;transform:scale(0.85)}}
+
+/* ── LAYOUT ─────────────────────────────── */
+.app-body{
+  display:grid;
+  grid-template-columns:340px 1fr;
+  gap:0;
+  min-height:calc(100vh - 56px);
+}
+
+/* ── SIDEBAR ────────────────────────────── */
+.sidebar{
+  background:var(--white);
+  border-right:1px solid var(--border);
+  padding:24px;
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+  overflow-y:auto;
+  height:calc(100vh - 56px);
+  position:sticky;
+  top:56px;
+}
+.sidebar-section{}
+.sidebar-label{
+  font-size:10px;font-weight:600;color:var(--muted);
+  letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px;
+}
+.input-group{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.input-group label{font-size:12px;color:var(--text);font-weight:500;}
+.input-group input,.input-group select,.input-group textarea{
+  font-family:'DM Sans',sans-serif;
+  font-size:13px;
+  padding:9px 12px;
+  border:1px solid var(--border);
+  border-radius:6px;
+  background:var(--card);
+  color:var(--text);
+  outline:none;
+  transition:border-color 0.15s;
+}
+.input-group input:focus,.input-group select:focus,.input-group textarea:focus{
+  border-color:var(--mid);
+}
+.input-group textarea{resize:vertical;min-height:80px;line-height:1.5;}
+.input-hint{font-size:10px;color:var(--muted);font-style:italic;}
+
+.divider{height:1px;background:var(--border);margin:4px 0;}
+
+.generate-btn{
+  font-family:'Syne',sans-serif;
+  font-size:13px;font-weight:700;
+  background:var(--dark);color:var(--neon);
+  border:none;border-radius:8px;
+  padding:12px 20px;
+  cursor:pointer;
+  width:100%;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:opacity 0.15s;
+  letter-spacing:0.3px;
+}
+.generate-btn:hover{opacity:0.85;}
+.generate-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.generate-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+
+.source-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:10px;font-weight:500;
+  padding:3px 8px;border-radius:4px;
+}
+.badge-attention{background:#FFF3E0;color:#E65100;}
+.badge-airtable{background:#E8F5E9;color:#1B5E20;}
+.badge-manual{background:#E3F2FD;color:#0D47A1;}
+.badge svg{width:9px;height:9px;stroke:currentColor;fill:none;stroke-width:2;}
+
+.status-bar{
+  font-size:11px;padding:8px 12px;border-radius:6px;
+  display:flex;align-items:flex-start;gap:6px;line-height:1.5;
+}
+.status-loading{background:#FFF8E1;color:#795548;}
+.status-error{background:#FFEBEE;color:#C62828;}
+.status-success{background:#E8F5E9;color:#2E7D32;}
+.status-bar svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0;margin-top:1px;}
+
+/* ── MAIN CONTENT ───────────────────────── */
+.main{
+  padding:32px;
+  overflow-y:auto;
+}
+
+.empty-state{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:400px;gap:12px;text-align:center;
+  color:var(--muted);
+}
+.empty-state svg{width:48px;height:48px;stroke:var(--border);fill:none;stroke-width:1.5;}
+.empty-state h3{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#ccc;}
+.empty-state p{font-size:13px;max-width:320px;line-height:1.6;}
+
+/* ── EXEC SUMMARY DOCUMENT ──────────────── */
+.doc{
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 2px 20px rgba(0,0,0,0.06);
+  max-width:900px;
+}
+
+/* Doc header */
+.doc-header{
+  background:var(--dark);
+  padding:20px 28px 18px;
+  display:grid;
+  grid-template-columns:1fr auto;
+  align-items:center;
+}
+.doc-header-left{}
+.doc-eyebrow{font-size:10px;color:rgba(255,255,255,0.45);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+.doc-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--white);line-height:1.2;}
+.doc-subtitle{font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px;font-style:italic;}
+.doc-neon-bar{height:3px;background:var(--neon);}
+
+.doc-body{padding:24px 28px;display:flex;flex-direction:column;gap:24px;}
+
+/* Section titles */
+.section-title{
+  font-size:9px;font-weight:600;color:var(--mid);
+  letter-spacing:1.5px;text-transform:uppercase;
+  padding-bottom:6px;border-bottom:1px solid var(--border);
+  margin-bottom:12px;
+}
+
+/* Stakeholders */
+.stakeholders-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.stakeholder-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:14px;
+}
+.stakeholder-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:1px;}
+.stakeholder-title{font-size:11px;color:var(--muted);margin-bottom:6px;}
+.stakeholder-tag{
+  display:inline-block;font-size:9px;font-weight:600;letter-spacing:0.8px;
+  text-transform:uppercase;padding:2px 7px;border-radius:3px;margin-bottom:8px;
+}
+.tag-sign-off{background:#FFF3E0;color:#BF360C;}
+.tag-champion{background:#E8F5E9;color:#1B5E20;}
+.tag-user{background:#E3F2FD;color:#0D47A1;}
+.stakeholder-desc{font-size:11px;color:var(--muted);line-height:1.6;}
+
+/* Two-col layout */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+
+/* Challenge / outcome lists */
+.list-card{
+  background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;
+}
+.list-card-title{font-size:11px;font-weight:600;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.list-card-title svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;}
+.list-card-title.challenges{color:#C62828;}
+.list-card-title.outcomes{color:#2E7D32;}
+.challenge-list,.outcome-list{list-style:none;display:flex;flex-direction:column;gap:7px;}
+.challenge-list li,.outcome-list li{
+  font-size:12px;color:var(--text);line-height:1.5;
+  padding-left:16px;position:relative;
+}
+.challenge-list li::before{content:"▸";position:absolute;left:0;color:#C62828;font-size:10px;top:2px;}
+.outcome-list li::before{content:"▸";position:absolute;left:0;color:#2E7D32;font-size:10px;top:2px;}
+
+/* Why Moss */
+.why-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.why-card{
+  background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;
+}
+.why-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.why-body{font-size:11px;color:var(--muted);line-height:1.6;}
+
+/* Commercial */
+.commercial-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.commercial-card{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.commercial-card-header{
+  padding:10px 14px;font-size:10px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;
+  display:flex;align-items:center;gap:6px;
+}
+.commercial-card-header.cost{background:#FFF3E0;color:#BF360C;}
+.commercial-card-header.roi{background:#E8F5E9;color:#1B5E20;}
+.commercial-card-header svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;}
+.commercial-table{width:100%;border-collapse:collapse;}
+.commercial-table td{
+  font-size:12px;padding:7px 14px;border-bottom:1px solid var(--border);
+  vertical-align:middle;
+}
+.commercial-table td:last-child{text-align:right;font-weight:600;color:var(--text);}
+.commercial-table td.neg{color:#C62828;}
+.commercial-table td.pos{color:#2E7D32;}
+.commercial-table tr.total td{
+  font-size:13px;font-weight:700;background:var(--dark);color:var(--white);border:none;
+}
+.commercial-table tr.total td:last-child{color:var(--neon);}
+
+/* Proof section */
+.proof-quote{
+  background:var(--dark);border-radius:8px;padding:18px 20px;
+  position:relative;overflow:hidden;
+}
+.proof-quote::before{
+  content:'"';position:absolute;top:-10px;left:12px;
+  font-family:'Syne',sans-serif;font-size:80px;color:var(--neon);opacity:0.15;
+  line-height:1;
+}
+.proof-quote-text{font-size:13px;color:var(--white);line-height:1.7;font-style:italic;position:relative;z-index:1;}
+.proof-quote-attr{margin-top:10px;font-size:11px;color:rgba(255,255,255,0.5);position:relative;z-index:1;}
+.proof-quote-attr strong{color:var(--neon);}
+
+.proof-stories{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;}
+.story-card{
+  background:var(--card);border:1px solid var(--border);border-radius:8px;
+  padding:14px;display:flex;flex-direction:column;gap:6px;
+}
+.story-company{font-size:13px;font-weight:600;color:var(--text);}
+.story-industry-tag{
+  display:inline-block;font-size:9px;font-weight:600;letter-spacing:0.5px;
+  text-transform:uppercase;padding:2px 7px;border-radius:3px;
+  background:#E8F5E9;color:#1B5E20;
+}
+.story-headline{font-size:11px;color:var(--muted);line-height:1.5;flex:1;}
+.story-link{
+  font-size:11px;color:var(--mid);font-weight:500;text-decoration:none;
+  display:inline-flex;align-items:center;gap:4px;
+}
+.story-link:hover{color:var(--dark);}
+.story-link svg{width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2;}
+
+.logos-section{margin-top:12px;}
+.logos-title{font-size:10px;color:var(--muted);letter-spacing:0.8px;text-transform:uppercase;margin-bottom:10px;}
+.logos-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.logo-chip{
+  background:var(--card);border:1px solid var(--border);border-radius:6px;
+  padding:6px 14px;font-size:12px;font-weight:600;color:var(--mid);
+  white-space:nowrap;
+}
+
+/* Footer */
+.doc-footer{
+  background:var(--dark);padding:14px 28px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.doc-footer-left{font-size:11px;color:var(--neon);font-weight:500;}
+.doc-footer-right{font-size:11px;color:rgba(255,255,255,0.4);}
+
+/* Action bar */
+.action-bar{
+  display:flex;gap:10px;margin-top:20px;align-items:center;flex-wrap:wrap;
+}
+.action-btn{
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;
+  padding:9px 16px;border-radius:6px;border:1px solid var(--border);
+  cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  background:var(--white);color:var(--text);transition:all 0.15s;
+}
+.action-btn:hover{background:var(--card);}
+.action-btn.primary{background:var(--dark);color:var(--neon);border-color:var(--dark);}
+.action-btn.primary:hover{opacity:0.85;}
+.action-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+
+/* Loading shimmer */
+.shimmer{
+  background:linear-gradient(90deg,var(--card) 25%,#e8ebe8 50%,var(--card) 75%);
+  background-size:200% 100%;
+  animation:shimmer 1.5s infinite;
+  border-radius:4px;
+  display:block;
+}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+
+/* Modjo upload */
+.upload-zone{
+  border:2px dashed var(--border);border-radius:8px;padding:16px;
+  text-align:center;cursor:pointer;transition:all 0.15s;background:var(--card);
+  position:relative;
+}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--mid);background:#eef2ee;}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-zone svg{width:24px;height:24px;stroke:var(--muted);fill:none;stroke-width:1.5;margin-bottom:6px;}
+.upload-zone p{font-size:11px;color:var(--muted);line-height:1.5;}
+.upload-zone p strong{color:var(--mid);font-weight:600;}
+.upload-success{
+  background:#E8F5E9;border:1px solid #A5D6A7;border-radius:6px;
+  padding:8px 12px;font-size:11px;color:#2E7D32;
+  display:flex;align-items:center;gap:6px;margin-top:6px;
+}
+.upload-success svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0;}
+
+@media print{
+  .app-header,.sidebar,.action-bar{display:none!important;}
+  .app-body{grid-template-columns:1fr;}
+  .main{padding:0;}
+  .doc{box-shadow:none;border:none;}
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo">m<span>o</span>ss</div>
+  <div class="header-title">Exec Summary Generator</div>
+  <div class="neon-dot"></div>
+</header>
+
+<div class="app-body">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Prospect Details</div>
+      <div class="input-group">
+        <label>Company name</label>
+        <input type="text" id="companyName" placeholder="e.g. ProForce">
+      </div>
+      <div class="input-group">
+        <label>Industry</label>
+        <select id="industry">
+          <option value="">Select industry</option>
+          <option>Recruitment & Staffing</option>
+          <option>Professional Services</option>
+          <option>Technology & Software</option>
+          <option>Retail & eCommerce</option>
+          <option>Hospitality & Food</option>
+          <option>Construction</option>
+          <option>Care & Healthcare</option>
+          <option>Finance & Accounting</option>
+          <option>Media & Marketing</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>AE name</label>
+        <input type="text" id="aeName" placeholder="e.g. Guy Hobson">
+      </div>
+      <div class="input-group">
+        <label>AE email</label>
+        <input type="email" id="aeEmail" placeholder="e.g. guy@getmoss.com">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Call Data</div>
+      <div class="input-group">
+        <label>Upload Modjo deal brief</label>
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="modjoFile" accept=".txt,.pdf,.md,.doc,.docx" onchange="handleUpload(this)">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <p><strong>Drop Modjo export here</strong><br>or click to browse (.txt, .pdf, .docx)</p>
+        </div>
+        <div id="uploadStatus" style="display:none;"></div>
+        <span class="input-hint">Export from Modjo deal page and upload to auto-fill fields</span>
+      </div>
+      <div class="input-group">
+        <label>Attention Call ID <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+        <input type="text" id="callId" placeholder="e.g. abc123def456">
+        <span class="input-hint">Overrides Modjo data if both provided</span>
+      </div>
+      <div class="source-badges">
+        <span class="badge badge-attention">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Attention
+        </span>
+        <span class="badge badge-airtable">
+          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          Airtable
+        </span>
+        <span class="badge badge-manual">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/></svg>
+          Modjo
+        </span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Commercial Inputs</div>
+      <div class="input-group">
+        <label>Monthly invoices / transactions</label>
+        <input type="number" id="invoiceVol" placeholder="e.g. 500" min="0">
+      </div>
+      <div class="input-group">
+        <label>Number of cards / users</label>
+        <input type="number" id="cardCount" placeholder="e.g. 15" min="0">
+      </div>
+      <div class="input-group">
+        <label>Finance team size</label>
+        <input type="number" id="teamSize" placeholder="e.g. 3" min="0">
+      </div>
+      <div class="input-group">
+        <label>Avg monthly spend (£)</label>
+        <input type="number" id="monthlySpend" placeholder="e.g. 50000" min="0">
+      </div>
+      <div class="input-group">
+        <label>Proposed modules</label>
+        <select id="modules" multiple style="height:80px;padding:6px;">
+          <option value="Cards">Corporate Cards</option>
+          <option value="AP">Accounts Payable</option>
+          <option value="Reimbursements">Reimbursements</option>
+          <option value="Adv Accounting">Adv. Accounting</option>
+          <option value="Adv Controlling">Adv. Controlling</option>
+          <option value="Procurement">Procurement</option>
+        </select>
+        <span class="input-hint">Hold Ctrl/Cmd to select multiple</span>
+      </div>
+    </div>
+
+    <div id="statusBar" style="display:none;"></div>
+
+    <button class="generate-btn" id="generateBtn" onclick="generate()">
+      <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      Generate Exec Summary
+    </button>
+
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main class="main" id="mainContent">
+    <div class="empty-state" id="emptyState">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <h3>No summary yet</h3>
+      <p>Enter a company name, paste an Attention call ID, add the commercial inputs, and hit Generate.</p>
+    </div>
+    <div id="docContainer" style="display:none;"></div>
+  </main>
+
+</div>
+
+<script>
+// ── Helpers ────────────────────────────────────────────────────────────────
+function setStatus(msg, type='loading') {
+  const bar = document.getElementById('statusBar');
+  const icons = {
+    loading: '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>',
+    error:   '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+    success: '<svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+  };
+  bar.style.display = 'flex';
+  bar.className = `status-bar status-${type}`;
+  bar.innerHTML = `${icons[type]}<span>${msg}</span>`;
+}
+
+function getModules() {
+  const sel = document.getElementById('modules');
+  return Array.from(sel.selectedOptions).map(o => o.value);
+}
+
+function fmt(n) { return '£' + Math.round(n).toLocaleString(); }
+
+// ── ROI Calculator ─────────────────────────────────────────────────────────
+function calcROI(invoices, cards, teamSize, monthlySpend) {
+  const inv = parseInt(invoices) || 0;
+  const cds = parseInt(cards) || 0;
+  const tm  = parseInt(teamSize) || 0;
+  const spd = parseInt(monthlySpend) || 0;
+
+  const hrlyRate = 35; // £35/hr avg finance team
+  const apHrs = (inv / 100) * 13 * 12; // 13 hrs saved per 100 invoices, annualised
+  const cardHrs = cds * 1.5 * 12; // ~1.5 hrs/card/month manual reconciliation
+  const vatLeakage = spd * 0.20 * 0.01 * 12; // 1% of VAT-bearing spend
+  const uncommitted = spd * 0.05 * 12; // 5% uncommitted spend
+  const headcount = tm >= 3 ? 12000 : 0; // avoided hire if team >= 3
+
+  return {
+    costs: [
+      { label: 'AP processing: ' + inv + ' invoices/month, all by hand', val: apHrs * hrlyRate },
+      { label: 'Manual card reconciliation (' + cds + ' cards)', val: cardHrs * hrlyRate },
+      { label: 'Uncommitted spend — no PO, no budget control', val: uncommitted },
+      { label: 'VAT leakage from missing/invalid receipts', val: vatLeakage },
+      { label: 'Duplicated tools & manual workarounds', val: 3500 },
+    ],
+    rois: [
+      { label: 'AP automation: ' + inv + ' invoices/month, review-only', val: apHrs * hrlyRate },
+      { label: 'Card reconciliation eliminated at point of spend', val: cardHrs * hrlyRate },
+      { label: 'PO workflow: full visibility before invoice arrives', val: uncommitted },
+      { label: 'VAT reclaim: 90%+ capture vs manual baseline', val: vatLeakage },
+      { label: headcount > 0 ? 'Headcount: avoided additional finance hire' : 'Consolidated tooling, single platform', val: headcount > 0 ? headcount : 3500 },
+    ]
+  };
+}
+
+// ── Why Moss modules ───────────────────────────────────────────────────────
+const whyMoss = {
+  'AP': { title: 'AP-first, modular approach', body: 'Moss allows you to start with AP and P2P and layer in cards and reimbursements later — no need to change everything at once or disrupt the wider team.' },
+  'Cards': { title: 'Real-time card control', body: 'Unlimited virtual and physical cards with instant receipt capture. Finance reviews — they no longer chase. Spend is visible the moment it happens.' },
+  'Adv Accounting': { title: 'Best-in-class OCR + AI', body: '98% OCR accuracy (industry avg: 85%) via Nippo and Gemini. AI learns coding patterns and pre-populates fields — reducing manual work to near zero.' },
+  'Reimbursements': { title: 'Unified reimbursements', body: 'Per-diems, mileage and out-of-pocket expenses in a single platform alongside cards. One submission flow, one approval workflow, one export.' },
+  'Procurement': { title: 'Purchase-to-pay control', body: 'Purchase requests and POs with tiered approval before an invoice even arrives. Budget consumption visible in real time, by department or project.' },
+  'Adv Controlling': { title: 'Granular controls', body: 'Card approvals, field-based rules, delegate approvers for absence cover. Every pound accounted for without manual policing.' },
+};
+
+const defaultWhy = [
+  { title: 'Unlimited users, transaction-based pricing', body: 'All employees can participate in approvals and workflows at no extra cost. Pricing scales on transaction volume, not headcount.' },
+  { title: 'Seamless integrations', body: 'Native connections to your accounting and HRIS software. Custom export formats built during onboarding at no extra cost.' },
+];
+
+// ── Modjo upload ───────────────────────────────────────────────────────────
+let modjoText = '';
+
+function handleUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('uploadStatus');
+  const zone = document.getElementById('uploadZone');
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    modjoText = e.target.result;
+    statusEl.style.display = 'flex';
+    statusEl.className = 'upload-success';
+    statusEl.innerHTML = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> <span><strong>${file.name}</strong> uploaded — fields will auto-populate on generate</span>`;
+    zone.style.borderColor = 'var(--neon-dim)';
+
+    // Auto-fill company name from filename if empty
+    const companyInput = document.getElementById('companyName');
+    if (!companyInput.value) {
+      const guess = file.name.replace(/[-_\.](deal|brief|modjo|summary).*/i,'').replace(/[-_]/g,' ').replace(/\.(txt|pdf|docx|md)$/i,'').trim();
+      if (guess) companyInput.value = guess;
+    }
+  };
+  reader.onerror = () => {
+    statusEl.style.display = 'flex';
+    statusEl.className = 'status-bar status-error';
+    statusEl.innerHTML = 'Could not read file. Try saving as .txt and re-uploading.';
+  };
+  // Read as text — works for .txt/.md; PDF will show raw text which is fine for parsing
+  reader.readAsText(file);
+}
+
+// Drag and drop
+document.addEventListener('DOMContentLoaded', () => {
+  const zone = document.getElementById('uploadZone');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const input = document.getElementById('modjoFile');
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      handleUpload(input);
+    }
+  });
+});
+
+// ── API Call ───────────────────────────────────────────────────────────────
+async function callClaude(systemPrompt, userPrompt) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      mcp_servers: [
+        { type: 'url', url: 'https://api.attention.tech/mcp', name: 'attention' },
+        { type: 'url', url: 'https://mcp.airtable.com/mcp', name: 'airtable' }
+      ]
+    })
+  });
+  if (!resp.ok) throw new Error(`API error ${resp.status}`);
+  const data = await resp.json();
+  const textBlocks = data.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
+  return textBlocks;
+}
+
+async function callClaudeJSON(systemPrompt, userPrompt) {
+  const raw = await callClaude(systemPrompt, userPrompt);
+  const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  return JSON.parse(clean);
+}
+
+// ── Main generate function ─────────────────────────────────────────────────
+async function generate() {
+  const company  = document.getElementById('companyName').value.trim();
+  const industry = document.getElementById('industry').value;
+  const callId   = document.getElementById('callId').value.trim();
+  const aeName   = document.getElementById('aeName').value.trim();
+  const aeEmail  = document.getElementById('aeEmail').value.trim();
+  const modules  = getModules();
+
+  if (!company) { setStatus('Please enter a company name.', 'error'); return; }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('docContainer').style.display = 'none';
+
+  try {
+    // ── Step 1: Pull call data from Modjo upload OR Attention ───────────────
+    let callData = null;
+
+    if (modjoText) {
+      setStatus('Parsing Modjo deal brief…');
+      try {
+        callData = await callClaudeJSON(
+          `You are a sales intelligence assistant. Parse the provided Modjo deal brief text and extract structured data.
+Return ONLY a JSON object with these exact keys:
+{
+  "stakeholders": [{"name":"","title":"","role":"sign_off|champion|user","description":"one sentence on their priorities and concerns"}],
+  "challenges": ["specific pain point as a concise bullet"],
+  "desiredOutcomes": ["specific desired outcome as a concise bullet"],
+  "invoiceVolume": number_or_null,
+  "cardCount": number_or_null,
+  "teamSize": number_or_null,
+  "monthlySpend": number_or_null,
+  "dealSize": "string or null",
+  "closeDate": "string or null",
+  "riskFlags": ["key risk as a bullet"],
+  "additionalContext": "1-2 sentence deal summary"
+}
+Extract as much as possible. For stakeholders: sign_off = FD/CEO/budget holder, champion = main contact driving the deal, user = end users.
+Return ONLY valid JSON, no other text.`,
+          `Parse this Modjo deal brief:
+
+${modjoText}`
+        );
+      } catch(e) {
+        console.warn('Modjo parse failed:', e);
+        setStatus('Could not parse Modjo file — continuing with manual inputs.', 'loading');
+        callData = null;
+      }
+    } else if (callId) {
+      setStatus('Pulling call transcript from Attention…');
+      try {
+        callData = await callClaudeJSON(
+          `You are a sales intelligence assistant. Use the Attention MCP to get call details for the given call ID. 
+Extract and return ONLY a JSON object with these exact keys:
+{
+  "stakeholders": [{"name":"","title":"","role":"sign_off|champion|user","description":"one sentence"}],
+  "challenges": ["bullet point challenge"],
+  "desiredOutcomes": ["bullet point desired outcome"],
+  "invoiceVolume": number_or_null,
+  "cardCount": number_or_null,
+  "teamSize": number_or_null,
+  "monthlySpend": number_or_null,
+  "additionalContext": "any other relevant deal context"
+}
+Return ONLY valid JSON, no other text.`,
+          `Get call details for call ID: ${callId}. Company name: ${company}.`
+        );
+      } catch(e) {
+        console.warn('Attention call failed:', e);
+        setStatus('Could not retrieve call from Attention — continuing with manual inputs.', 'loading');
+        callData = null;
+      }
+    }
+
+    // ── Step 2: Pull stories + quotes from Airtable ────────────────────────
+    setStatus('Searching Airtable for matching stories, quotes and logos…');
+    let proofData = null;
+    try {
+      proofData = await callClaudeJSON(
+        `You are a sales content assistant with access to the Moss Customer Evidence Base in Airtable (base ID: appkXoIuCjF5OBddU).
+Search the Assets table for customer stories matching the given industry. 
+Also search the Testimonials table for strong quotes relevant to the prospect's likely pain points.
+Also search the Advocates table for UK companies in similar industries that have logo consent (Has Consent = 1).
+
+Return ONLY a JSON object:
+{
+  "stories": [{"company":"","industry":"","headline":"","bodyText":"","link":""}],
+  "quote": {"text":"","author":"","title":"","company":""},
+  "logos": ["Company Name"]
+}
+Limit to 3 stories, 1 best quote, up to 8 logos. Return ONLY valid JSON.`,
+        `Industry: ${industry || 'general business'}. Company: ${company}. Find the most relevant proof assets for a sales conversation.`
+      );
+    } catch(e) {
+      console.warn('Airtable search failed:', e);
+      proofData = null;
+    }
+
+    // ── Step 3: Merge inputs — auto-populate form fields from parsed data ────
+    if (callData?.invoiceVolume && !document.getElementById('invoiceVol').value)
+      document.getElementById('invoiceVol').value = callData.invoiceVolume;
+    if (callData?.cardCount && !document.getElementById('cardCount').value)
+      document.getElementById('cardCount').value = callData.cardCount;
+    if (callData?.teamSize && !document.getElementById('teamSize').value)
+      document.getElementById('teamSize').value = callData.teamSize;
+
+    const invVol  = parseInt(document.getElementById('invoiceVol').value) || callData?.invoiceVolume || 200;
+    const cards   = parseInt(document.getElementById('cardCount').value)  || callData?.cardCount    || 10;
+    const team    = parseInt(document.getElementById('teamSize').value)   || callData?.teamSize     || 2;
+    const spend   = parseInt(document.getElementById('monthlySpend').value)|| callData?.monthlySpend|| 30000;
+
+    const roi = calcROI(invVol, cards, team, spend);
+
+    const stakeholders = callData?.stakeholders || [
+      { name: 'Finance Director', title: 'Executive Sponsor', role: 'sign_off', description: 'Final decision-maker. Expects a clear business case showing time savings and cost justification.' },
+      { name: 'Finance Manager', title: 'Project Champion', role: 'champion', description: 'Driving the project. Primary goal is to reduce manual workload and introduce financial controls.' },
+      { name: 'Finance Team', title: 'End Users', role: 'user', description: 'Day-to-day users of the platform. Adoption ease and workflow fit are key concerns.' }
+    ];
+
+    const challenges = callData?.challenges || [
+      'Manual processes causing significant time loss across the finance team',
+      'No real-time spend visibility — data only available after the fact',
+      'Disconnected systems creating duplicate effort and reconciliation overhead',
+      'Receipt collection unreliable — VAT exposure risk',
+      'No purchase order or approval workflow before spend occurs'
+    ];
+
+    const outcomes = callData?.desiredOutcomes || [
+      'Centralised spend management across cards, expenses and invoices',
+      'Real-time budget visibility by department and entity',
+      'Automated pre-accounting — AI coding, VAT, cost centre allocation',
+      'Streamlined month-end close — from weeks to days',
+      'Scalable controls that grow with the business'
+    ];
+
+    const whyItems = modules.length > 0
+      ? modules.slice(0,4).map(m => whyMoss[m] || defaultWhy[0]).filter(Boolean)
+      : Object.values(whyMoss).slice(0,4);
+
+    const stories = proofData?.stories?.length ? proofData.stories : [
+      { company: 'Joblift', industry: 'Recruitment & Jobs', headline: 'Joblift streamlines spend flows for rapid growth with Moss', bodyText: '100% spend visibility · 2 weeks admin saved p/m · 100% receipt collection rate', link: 'https://www.getmoss.com/en-gb/customer-stories/joblift' },
+      { company: 'Orderly', industry: 'Professional Services', headline: 'Orderly saves 7 admin days per month with Moss', bodyText: '114 Moss cards issued · £8k reduction in subscription spend · 99% receipt rate', link: 'https://www.getmoss.com/en-gb/customer-stories/orderly' },
+      { company: 'Seibert Group', industry: 'B2B Technology', headline: 'Seibert Group streamlines financial operations with Moss', bodyText: 'Multi-entity spend control · Automated accounting · Finance team freed for strategic work', link: 'https://www.getmoss.com/en-gb/customer-stories/seibert-group' }
+    ];
+
+    const quote = proofData?.quote || {
+      text: 'The fact that we no longer have to chase after colleagues, but to have colleagues provide their receipts independently – it\'s such a huge time saver and an incredible relief.',
+      author: 'Gerrit Kern', title: 'Head of Finance', company: 'Joblift'
+    };
+
+    const logos = proofData?.logos?.length ? proofData.logos : [
+      'Joblift', 'Orderly', 'Hive', 'Pizza Pilgrims', 'HelloBello', 'Snocks', 'Napo', 'Lemontree'
+    ];
+
+    // ── Step 4: Render ─────────────────────────────────────────────────────
+    setStatus('Rendering exec summary…');
+    renderDoc({ company, industry, aeName, aeEmail, modules, stakeholders, challenges, outcomes, whyItems, roi, invVol, cards, stories, quote, logos });
+    setStatus(`Exec summary generated for ${company}`, 'success');
+
+  } catch(err) {
+    console.error(err);
+    setStatus('Error: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function renderDoc({ company, industry, aeName, aeEmail, modules, stakeholders, challenges, outcomes, whyItems, roi, invVol, cards, stories, quote, logos }) {
+  const tagClass = { sign_off:'tag-sign-off', champion:'tag-champion', user:'tag-user' };
+  const tagLabel = { sign_off:'Sign-off Authority', champion:'Project Champion', user:'End Users' };
+
+  const totalCost = roi.costs.reduce((s,r)=>s+r.val,0);
+  const totalROI  = roi.rois.reduce((s,r)=>s+r.val,0);
+
+  const stHtml = stakeholders.slice(0,3).map(s => `
+    <div class="stakeholder-card">
+      <div class="stakeholder-name">${s.name}</div>
+      <div class="stakeholder-title">${s.title}</div>
+      <div class="stakeholder-tag ${tagClass[s.role] || 'tag-user'}">${tagLabel[s.role] || 'End Users'}</div>
+      <div class="stakeholder-desc">${s.description}</div>
+    </div>`).join('');
+
+  const chHtml = challenges.map(c => `<li>${c}</li>`).join('');
+  const ouHtml = outcomes.map(o => `<li>${o}</li>`).join('');
+
+  const whyHtml = whyItems.slice(0,4).map(w => `
+    <div class="why-card">
+      <div class="why-title">${w.title}</div>
+      <div class="why-body">${w.body}</div>
+    </div>`).join('');
+
+  const costRows = roi.costs.map(r => `<tr><td>${r.label}</td><td class="neg">${fmt(r.val)}</td></tr>`).join('');
+  const roiRows  = roi.rois.map(r => `<tr><td>${r.label}</td><td class="pos">${fmt(r.val)}</td></tr>`).join('');
+
+  const storiesHtml = stories.slice(0,3).map(s => `
+    <div class="story-card">
+      <div class="story-company">${s.company}</div>
+      <span class="story-industry-tag">${s.industry}</span>
+      <div class="story-headline">${s.headline}</div>
+      ${s.bodyText ? `<div style="font-size:11px;color:#999;">${s.bodyText}</div>` : ''}
+      ${s.link ? `<a class="story-link" href="${s.link}" target="_blank">Read full story <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''}
+    </div>`).join('');
+
+  const logosHtml = logos.map(l => `<span class="logo-chip">${l}</span>`).join('');
+
+  const doc = `
+  <div class="doc" id="generatedDoc">
+    <div class="doc-header">
+      <div class="doc-header-left">
+        <div class="doc-eyebrow">Moss for ${company} — Executive Summary</div>
+        <div class="doc-title">Moss for ${company}</div>
+        <div class="doc-subtitle">Prepared for FD sign-off · Based on discovery call data${industry ? ' · ' + industry : ''}</div>
+      </div>
+    </div>
+    <div class="doc-neon-bar"></div>
+
+    <div class="doc-body">
+
+      <!-- Stakeholders -->
+      <div>
+        <div class="section-title">Key Stakeholders</div>
+        <div class="stakeholders-grid">${stHtml}</div>
+      </div>
+
+      <!-- Challenges + Outcomes -->
+      <div class="two-col">
+        <div class="list-card">
+          <div class="list-card-title challenges">
+            <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Current Challenges
+          </div>
+          <ul class="challenge-list">${chHtml}</ul>
+        </div>
+        <div class="list-card">
+          <div class="list-card-title outcomes">
+            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            Desired Outcomes
+          </div>
+          <ul class="outcome-list">${ouHtml}</ul>
+        </div>
+      </div>
+
+      <!-- Why Moss -->
+      <div>
+        <div class="section-title">Why Moss is the right partner for ${company}</div>
+        <div class="why-grid">${whyHtml}</div>
+      </div>
+
+      <!-- Commercial -->
+      <div>
+        <div class="section-title">Commercial Context</div>
+        <div class="commercial-grid">
+          <div class="commercial-card">
+            <div class="commercial-card-header cost">
+              <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+              Cost of not acting
+            </div>
+            <table class="commercial-table">
+              ${costRows}
+              <tr class="total"><td>Annual cost of status quo</td><td class="neg">${fmt(totalCost)}</td></tr>
+            </table>
+          </div>
+          <div class="commercial-card">
+            <div class="commercial-card-header roi">
+              <svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              Estimated annual ROI
+            </div>
+            <table class="commercial-table">
+              ${roiRows}
+              <tr class="total"><td>Annual value delivered</td><td class="pos">${fmt(totalROI)}</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Proof -->
+      <div>
+        <div class="section-title">Customers Like You</div>
+        <div class="proof-quote">
+          <div class="proof-quote-text">${quote.text}</div>
+          <div class="proof-quote-attr"><strong>${quote.author}</strong> · ${quote.title} · ${quote.company}</div>
+        </div>
+        <div class="proof-stories">${storiesHtml}</div>
+        <div class="logos-section">
+          <div class="logos-title">Trusted by similar businesses</div>
+          <div class="logos-row">${logosHtml}</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="doc-footer">
+      <div class="doc-footer-left">Ready to move forward? Let's get ${company} live.</div>
+      <div class="doc-footer-right">${aeName ? aeName + (aeEmail ? ' · ' + aeEmail : '') : 'moss.com'}</div>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <button class="action-btn primary" onclick="window.print()">
+      <svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Save as PDF
+    </button>
+    <button class="action-btn" onclick="copyText()">
+      <svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+      Copy text
+    </button>
+    <button class="action-btn" onclick="generate()">
+      <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Regenerate
+    </button>
+  </div>`;
+
+  const container = document.getElementById('docContainer');
+  container.innerHTML = doc;
+  container.style.display = 'block';
+}
+
+function copyText() {
+  const doc = document.getElementById('generatedDoc');
+  if (!doc) return;
+  navigator.clipboard.writeText(doc.innerText).then(() => {
+    const btn = event.target.closest('button');
+    btn.textContent = 'Copied!';
+    setTimeout(() => {
+      btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg> Copy text';
+    }, 2000);
+  });
+}
+</script>
+</body>
+</html>
