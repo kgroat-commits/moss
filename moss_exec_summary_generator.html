@@ -375,7 +375,42 @@ body{
   text-align:center;letter-spacing:0.2px;
 }
 
-/* ── COMPACT STAKEHOLDER TABLE ── */
+/* ── MOSS PRICING BANNER — full width below commercial grid ── */
+.pricing-banner{
+  margin-top:12px;
+}
+.pricing-banner .pricing-card{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  border-radius:8px;
+}
+.pricing-banner .pricing-card-header{
+  padding:0 20px;
+  border-bottom:none;
+  border-right:1px solid rgba(255,255,255,0.08);
+  height:100%;
+  display:flex;
+  align-items:center;
+  min-width:160px;
+}
+.pricing-banner .pricing-card-body{
+  padding:14px 24px;
+  text-align:left;
+  display:flex;
+  align-items:center;
+  gap:24px;
+}
+.pricing-banner .pricing-amount{font-size:28px;}
+.pricing-banner .pricing-period{margin-top:0;margin-left:4px;}
+.pricing-banner .pricing-notes{margin-top:0;margin-left:8px;}
+.pricing-banner .pricing-roi-ratio{
+  margin-top:0;
+  margin-left:auto;
+  padding:8px 20px;
+  min-width:200px;
+  white-space:nowrap;
+}
 .stakeholder-table{width:100%;border-collapse:collapse;}
 .stakeholder-table tr{border-bottom:1px solid var(--border);}
 .stakeholder-table tr:last-child{border-bottom:none;}
@@ -533,6 +568,13 @@ body{
   .story-stats{font-size:8.5px;}
   .story-read-label{font-size:8px;}
   .story-industry-badge{font-size:7px;}
+
+  /* Pricing banner */
+  .pricing-banner{margin-top:8px;}
+  .pricing-banner .pricing-card-body{padding:10px 16px;gap:16px;}
+  .pricing-banner .pricing-amount{font-size:20px;}
+  .pricing-banner .pricing-roi-ratio{font-size:9px;padding:6px 14px;min-width:160px;}
+  .pricing-banner .pricing-card-header{min-width:120px;font-size:8px;}
 
   /* Footer */
   .doc-footer{padding:8px 16px;}
@@ -1217,7 +1259,6 @@ function renderDoc({ company, industry, aeName, aeEmail, aePhone, aeTitle,
             </table>
           </div>
           <div class="commercial-footnote" style="display:none;">internal only</div>
-          ${pricingCardHtml ? `<div style="margin-top:12px;">${pricingCardHtml}</div>` : ''}
         </div>
 
         <!-- Estimated ROI -->
@@ -1243,6 +1284,12 @@ function renderDoc({ company, industry, aeName, aeEmail, aePhone, aeTitle,
         </div>
 
       </div>
+
+      <!-- Moss Investment — full width row below the grid -->
+      ${pricingCardHtml ? `
+      <div class="pricing-banner">
+        ${pricingCardHtml}
+      </div>` : ''}
     </div>
 
     <!-- Footer -->
