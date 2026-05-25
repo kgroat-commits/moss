@@ -182,7 +182,7 @@ body{
   gap:20px;
 }
 .doc-header-left{}
-.doc-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--white);line-height:1.2;margin-bottom:3px;}
+.doc-title{font-family:'DM Sans',sans-serif;font-size:18px;font-weight:600;color:var(--white);line-height:1.3;margin-bottom:3px;letter-spacing:-0.1px;}
 .doc-subtitle{font-size:11px;color:rgba(255,255,255,0.5);font-style:italic;}
 
 /* Moss logo in doc header */
@@ -484,6 +484,11 @@ body{
         <input type="text" id="companyName" placeholder="e.g. ProForce">
       </div>
       <div class="input-group">
+        <label>Prepared for <span style="color:var(--muted);font-weight:400;">(sign-off name or role)</span></label>
+        <input type="text" id="preparedFor" placeholder="e.g. Sarah Mitchell, FD">
+        <span class="input-hint">Shown in the document subtitle — auto-filled from Modjo if available</span>
+      </div>
+      <div class="input-group">
         <label>Industry</label>
         <select id="industry">
           <option value="">Select industry</option>
@@ -583,6 +588,9 @@ body{
       <div class="input-group">
         <label>Avg monthly spend (£)</label>
         <input type="number" id="monthlySpend" placeholder="e.g. 50000" min="0">
+      </div>
+      <div style="background:var(--neon-100);border:1px solid var(--neon-400);border-radius:6px;padding:8px 10px;font-size:10px;color:var(--dark);line-height:1.5;margin-bottom:12px;">
+        <strong>AE note:</strong> If fields are left blank, cost of inaction figures will use industry-average defaults. Fill in actual figures from discovery before sharing with the prospect.
       </div>
       <div class="input-group">
         <label>Proposed modules</label>
@@ -788,6 +796,7 @@ async function callClaudeJSON(systemPrompt, userPrompt) {
 // ── Main generate function ─────────────────────────────────────────────────
 async function generate() {
   const company  = document.getElementById('companyName').value.trim();
+  const preparedFor = document.getElementById('preparedFor').value.trim();
   const industry = document.getElementById('industry').value;
   const callId   = document.getElementById('callId').value.trim();
   const aeName   = document.getElementById('aeName').value.trim();
@@ -826,6 +835,7 @@ Return ONLY a JSON object with these exact keys:
   "monthlySpend": number_or_null,
   "dealSize": "string or null",
   "closeDate": "string or null",
+  "preparedFor": "name and/or role of the FD or decision-maker this doc is prepared for, or null",
   "riskFlags": ["key risk as a bullet"],
   "additionalContext": "1-2 sentence deal summary"
 }
@@ -895,16 +905,25 @@ Limit to 3 stories, 1 best quote, up to 8 logos. Return ONLY valid JSON.`,
       document.getElementById('cardCount').value = callData.cardCount;
     if (callData?.teamSize && !document.getElementById('teamSize').value)
       document.getElementById('teamSize').value = callData.teamSize;
+    if (callData?.preparedFor && !document.getElementById('preparedFor').value)
+      document.getElementById('preparedFor').value = callData.preparedFor;
 
-    const invVol = parseInt(document.getElementById('invoiceVol').value) || callData?.invoiceVolume || 200;
-    const cards  = parseInt(document.getElementById('cardCount').value)  || callData?.cardCount    || 10;
-    const team   = parseInt(document.getElementById('teamSize').value)   || callData?.teamSize     || 2;
-    const spend  = parseInt(document.getElementById('monthlySpend').value)|| callData?.monthlySpend|| 30000;
+    const invVol = parseInt(document.getElementById('invoiceVol').value) || callData?.invoiceVolume || null;
+    const cards  = parseInt(document.getElementById('cardCount').value)  || callData?.cardCount    || null;
+    const team   = parseInt(document.getElementById('teamSize').value)   || callData?.teamSize     || null;
+    const spend  = parseInt(document.getElementById('monthlySpend').value)|| callData?.monthlySpend|| null;
     const mossPrice  = parseInt(document.getElementById('mossPrice').value) || 0;
     const priceNotes = document.getElementById('priceNotes').value.trim();
 
-    const roi = calcROI(invVol, cards, team, spend);
+    // Surface defaults visibly in sidebar so AE knows what numbers are being used
+    const usingDefaults = !invVol || !cards || !spend;
+    if (!invVol) document.getElementById('invoiceVol').placeholder = 'Using default: 200';
+    if (!cards)  document.getElementById('cardCount').placeholder  = 'Using default: 10';
+    if (!spend)  document.getElementById('monthlySpend').placeholder = 'Using default: £30,000/mo';
 
+    const roi = calcROI(invVol || 200, cards || 10, team || 2, spend || 30000);
+
+    const usingStakeholderDefaults = !callData?.stakeholders;
     const stakeholders = callData?.stakeholders || [
       { name: 'Finance Director', title: 'Executive Sponsor', role: 'sign_off', description: 'Final decision-maker. Expects a clear business case showing time savings and cost justification.' },
       { name: 'Finance Manager', title: 'Project Champion', role: 'champion', description: 'Driving the project. Primary goal is to reduce manual workload and introduce financial controls.' },
@@ -942,16 +961,28 @@ Limit to 3 stories, 1 best quote, up to 8 logos. Return ONLY valid JSON.`,
 
     // Champion for subtitle
     const champion = stakeholders.find(s => s.role === 'champion') || stakeholders[1] || stakeholders[0];
+    const resolvedPreparedFor = document.getElementById('preparedFor').value.trim() || callData?.preparedFor || null;
 
-    setStatus('Rendering exec summary…');
+    // Warn AE if falling back on defaults
+    if (usingDefaults || usingStakeholderDefaults) {
+      const warnings = [];
+      if (usingStakeholderDefaults) warnings.push('stakeholders are placeholder defaults');
+      if (usingDefaults) warnings.push('some commercial figures use default estimates — check sidebar');
+      setStatus('⚠ Generated with fallbacks: ' + warnings.join('; ') + '. Review before sharing.', 'error');
+    } else {
+      setStatus(`Exec summary generated for ${company}`, 'success');
+    }
+
     renderDoc({
       company, industry, aeName, aeEmail, aePhone, aeTitle,
       managerName, managerEmail, managerTitle,
       modules, stakeholders, challenges, outcomes, whyItems,
-      roi, invVol, cards, stories, logos: proofData?.logos || [],
-      champion, mossPrice, priceNotes
+      roi, invVol: invVol || 200, cards: cards || 10,
+      stories, logos: proofData?.logos || [],
+      champion, mossPrice, priceNotes,
+      preparedFor: resolvedPreparedFor,
+      usingDefaults, usingStakeholderDefaults
     });
-    setStatus(`Exec summary generated for ${company}`, 'success');
 
   } catch(err) {
     console.error(err);
@@ -965,7 +996,8 @@ Limit to 3 stories, 1 best quote, up to 8 logos. Return ONLY valid JSON.`,
 function renderDoc({ company, industry, aeName, aeEmail, aePhone, aeTitle,
     managerName, managerEmail, managerTitle,
     modules, stakeholders, challenges, outcomes, whyItems,
-    roi, invVol, cards, stories, logos, champion, mossPrice, priceNotes }) {
+    roi, invVol, cards, stories, logos, champion, mossPrice, priceNotes,
+    preparedFor, usingDefaults, usingStakeholderDefaults }) {
 
   const tagClass = { sign_off:'tag-sign-off', champion:'tag-champion', user:'tag-user' };
   const tagLabel = { sign_off:'Sign-off Authority', champion:'Project Champion', user:'End Users' };
@@ -973,14 +1005,12 @@ function renderDoc({ company, industry, aeName, aeEmail, aePhone, aeTitle,
   const totalCost = roi.costs.reduce((s,r)=>s+r.val,0);
   const totalROI  = roi.rois.reduce((s,r)=>s+r.val,0);
 
-  // Header subtitle: match PDF format
-  const subtitleParts = ['Prepared for FD sign-off'];
-  if (champion?.name && champion.name !== 'Finance Manager') {
-    subtitleParts.push(`Based on discovery calls with ${champion.name}${champion.title ? ' (' + champion.title + ', ' + company + ')' : ''}`);
-  } else {
-    subtitleParts.push('Based on discovery call data');
-  }
-  const subtitle = subtitleParts.join(' · ');
+  // Header subtitle
+  const preparedLine = preparedFor ? `Prepared for ${preparedFor}` : 'Prepared for sign-off';
+  const discoveryLine = (champion?.name && champion.name !== 'Finance Manager')
+    ? `Based on discovery calls with ${champion.name}${champion.title ? ' (' + champion.title + ', ' + company + ')' : ''}`
+    : 'Based on discovery call data';
+  const subtitle = `${preparedLine} · ${discoveryLine}`;
 
   // Stakeholders — compact table (smaller, less prominent)
   const stHtml = `
@@ -1105,7 +1135,7 @@ function renderDoc({ company, industry, aeName, aeEmail, aePhone, aeTitle,
               <tr class="total"><td>Annual cost of status quo</td><td>${fmt(totalCost)}</td></tr>
             </table>
           </div>
-          <div class="commercial-footnote">* Estimates based on industry averages. Adjust with AE input before sharing externally.</div>
+          <div class="commercial-footnote" style="display:none;">internal only</div>
           ${pricingCardHtml ? `<div style="margin-top:12px;">${pricingCardHtml}</div>` : ''}
         </div>
 
