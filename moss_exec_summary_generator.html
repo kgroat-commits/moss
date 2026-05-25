@@ -347,26 +347,32 @@ body{
 
 /* ── MOSS PRICING CARD ── */
 .pricing-card{
-  border:2px solid var(--neon-dim);
+  background:var(--dark);
+  border:none;
   border-radius:8px;
   overflow:hidden;
 }
 .pricing-card-header{
-  padding:8px 12px;
-  background:var(--dark);
-  font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;
-  color:var(--neon);display:flex;align-items:center;gap:5px;
+  padding:10px 16px;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
+  color:rgba(255,255,255,0.45);display:flex;align-items:center;gap:6px;
 }
-.pricing-card-header svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;}
-.pricing-card-body{padding:14px 12px;text-align:center;}
-.pricing-amount{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--dark);line-height:1;}
-.pricing-period{font-size:10px;color:var(--muted);margin-top:2px;}
-.pricing-notes{font-size:10px;color:var(--muted);margin-top:6px;font-style:italic;line-height:1.4;}
+.pricing-card-header svg{width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2;opacity:0.6;}
+.pricing-card-body{padding:16px;text-align:center;}
+.pricing-amount{
+  font-family:'DM Sans',sans-serif;font-size:28px;font-weight:300;
+  color:var(--white);line-height:1;letter-spacing:-0.5px;
+}
+.pricing-period{font-size:10px;color:rgba(255,255,255,0.35);margin-top:4px;letter-spacing:0.5px;text-transform:uppercase;}
+.pricing-notes{font-size:10px;color:rgba(255,255,255,0.4);margin-top:8px;line-height:1.5;}
 .pricing-roi-ratio{
-  margin-top:10px;padding:7px 10px;
-  background:var(--neon-200);border-radius:6px;
-  font-size:11px;font-weight:600;color:var(--dark);
-  text-align:center;
+  margin-top:12px;padding:8px 12px;
+  background:rgba(185,255,63,0.12);
+  border:1px solid rgba(185,255,63,0.2);
+  border-radius:6px;
+  font-size:11px;font-weight:500;color:var(--neon);
+  text-align:center;letter-spacing:0.2px;
 }
 
 /* ── COMPACT STAKEHOLDER TABLE ── */
@@ -890,7 +896,7 @@ Return ONLY a JSON object:
   "quote": {"text":"","author":"","title":"","company":""},
   "logos": ["Company Name"]
 }
-Limit to 3 stories, 1 best quote, up to 8 logos. Return ONLY valid JSON.`,
+Limit to 2 stories (most relevant by industry), 1 best quote, up to 8 logos. Return ONLY valid JSON.`,
         `Industry: ${industry || 'general business'}. Company: ${company}. Find the most relevant proof assets for a sales conversation.`
       );
     } catch(e) {
@@ -953,10 +959,9 @@ Limit to 3 stories, 1 best quote, up to 8 logos. Return ONLY valid JSON.`,
     // Pad why items to 4
     while (whyItems.length < 4) whyItems.push(defaultWhy[whyItems.length % defaultWhy.length]);
 
-    const stories = proofData?.stories?.length ? proofData.stories : [
+    const stories = proofData?.stories?.length ? proofData.stories.slice(0,2) : [
       { company: 'Joblift', industry: 'Recruitment & Jobs', headline: 'Joblift streamlines spend flows for rapid growth with Moss', bodyText: '100% spend visibility · 2 weeks admin saved p/m · 100% receipt collection rate', link: 'https://www.getmoss.com/en-gb/customer-stories/joblift' },
-      { company: 'Orderly', industry: 'Professional Services', headline: 'Orderly saves 7 admin days per month with Moss', bodyText: '114 Moss cards issued · £8k reduction in subscription spend · 99% receipt rate', link: 'https://www.getmoss.com/en-gb/customer-stories/orderly' },
-      { company: 'Seibert Group', industry: 'B2B Technology Services', headline: 'Seibert Group streamlines financial operations with Moss', bodyText: 'Multi-entity spend control · Automated accounting · Finance team freed for strategic work', link: 'https://www.getmoss.com/en-gb/customer-stories/seibert-group' }
+      { company: 'Orderly', industry: 'Professional Services', headline: 'Orderly saves 7 admin days per month with Moss', bodyText: '114 Moss cards issued · £8k reduction in subscription spend · 99% receipt rate', link: 'https://www.getmoss.com/en-gb/customer-stories/orderly' }
     ];
 
     // Champion for subtitle
@@ -1057,7 +1062,7 @@ function renderDoc({ company, industry, aeName, aeEmail, aePhone, aeTitle,
     </div>` : '';
 
   // Stories — vertical list, clearly hyperlinked
-  const storiesHtml = stories.slice(0,3).map(s => {
+  const storiesHtml = stories.slice(0,2).map(s => {
     const badgeClass = industryBadgeClass(s.industry);
     return `<a class="story-row" href="${s.link || '#'}" target="_blank">
       <div class="story-left">
