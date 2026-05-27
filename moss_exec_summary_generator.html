@@ -475,6 +475,65 @@ body{
 .action-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
 
 /* ── MODJO UPLOAD ── */
+.paste-block{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.paste-block-label{
+  font-size:10px;font-weight:600;color:var(--muted);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.paste-block-remove{
+  background:none;border:none;cursor:pointer;
+  font-size:11px;color:var(--muted);padding:0;opacity:0.6;
+}
+.paste-block-remove:hover{opacity:1;color:var(--dark);}
+.paste-textarea{
+  font-family:'DM Sans',sans-serif;font-size:11px;
+  padding:8px 10px;
+  border:1px solid var(--border);
+  border-radius:6px;
+  background:var(--card);
+  color:var(--text);
+  resize:vertical;
+  min-height:72px;
+  max-height:160px;
+  line-height:1.5;
+  outline:none;
+  transition:border-color 0.15s;
+  width:100%;
+}
+.paste-textarea:focus{border-color:var(--mid);}
+.paste-textarea::placeholder{color:var(--grey-300);}
+.paste-textarea.has-content{border-color:var(--neon-dim);background:#FAFFFE;}
+
+.add-paste-btn{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
+  color:var(--mid);background:none;
+  border:1px dashed var(--border);border-radius:6px;
+  padding:6px 10px;cursor:pointer;width:100%;
+  justify-content:center;transition:all 0.15s;margin-top:2px;
+}
+.add-paste-btn:hover{border-color:var(--mid);color:var(--dark);background:var(--neon-100);}
+.add-paste-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.5;}
+
+.file-item{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:var(--neon-200);border:1px solid var(--neon-400);
+  border-radius:5px;padding:5px 8px;
+  font-size:11px;color:var(--dark);
+}
+.file-item-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;}
+.file-item-remove{
+  background:none;border:none;cursor:pointer;
+  color:var(--mid);font-size:14px;line-height:1;padding:0 2px;
+  flex-shrink:0;opacity:0.6;
+}
+.file-item-remove:hover{opacity:1;color:var(--dark);}
+
 .upload-zone{
   border:2px dashed var(--border);border-radius:8px;padding:16px;
   text-align:center;cursor:pointer;transition:all 0.15s;background:var(--card);
@@ -662,20 +721,33 @@ body{
 
     <div class="sidebar-section">
       <div class="sidebar-label">Call Data</div>
+
+      <!-- Paste areas — primary input -->
       <div class="input-group">
-        <label>Upload Modjo deal brief</label>
-        <div class="upload-zone" id="uploadZone">
-          <input type="file" id="modjoFile" accept=".txt,.pdf,.md,.doc,.docx" onchange="handleUpload(this)">
-          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <p><strong>Drop Modjo export here</strong><br>or click to browse (.txt, .pdf, .docx)</p>
-        </div>
-        <div id="uploadStatus" style="display:none;"></div>
-        <span class="input-hint">Export from Modjo deal page and upload to auto-fill fields</span>
+        <label>Paste call summaries or deal briefs</label>
+        <div id="pasteList" style="display:flex;flex-direction:column;gap:6px;"></div>
+        <button type="button" class="add-paste-btn" onclick="addPasteBlock()">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add another
+        </button>
+        <span class="input-hint">Copy from Modjo CallSummary, DealBriefing or any call transcript — all combined into one parse</span>
       </div>
+
+      <!-- File upload — secondary -->
+      <div class="input-group" style="margin-top:4px;">
+        <label style="color:var(--muted);">Or upload files <span style="font-weight:400;">(optional)</span></label>
+        <div class="upload-zone" id="uploadZone" style="padding:10px 12px;">
+          <input type="file" id="modjoFile" accept=".txt,.pdf,.md,.doc,.docx" multiple onchange="handleUpload(this)">
+          <svg viewBox="0 0 24 24" style="width:16px;height:16px;margin-bottom:3px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <p style="font-size:10px;"><strong>Drop files or click to browse</strong><br>.txt, .pdf, .docx</p>
+        </div>
+        <div id="fileList" style="margin-top:6px;display:flex;flex-direction:column;gap:4px;"></div>
+      </div>
+
       <div class="input-group">
         <label>Attention Call ID <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
         <input type="text" id="callId" placeholder="e.g. abc123def456">
-        <span class="input-hint">Overrides Modjo data if both provided</span>
+        <span class="input-hint">Overrides pasted/uploaded content if provided</span>
       </div>
       <div class="source-badges">
         <span class="badge badge-attention">
@@ -839,38 +911,130 @@ const defaultWhy = [
   { title: 'Seamless integrations', body: 'Native connections to your accounting and HRIS software. Custom export formats built during onboarding at no extra cost.' },
 ];
 
-// ── Modjo upload ───────────────────────────────────────────────────────────
-let modjoText = '';
+// ── Paste blocks ───────────────────────────────────────────────────────────
+let pasteBlockCount = 0;
 
-function handleUpload(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const statusEl = document.getElementById('uploadStatus');
+function addPasteBlock() {
+  pasteBlockCount++;
+  const id = `paste-${pasteBlockCount}`;
+  const list = document.getElementById('pasteList');
+  const block = document.createElement('div');
+  block.className = 'paste-block';
+  block.id = `block-${id}`;
+  block.innerHTML = `
+    <div class="paste-block-label">
+      <span>Entry ${list.children.length + 1}</span>
+      ${list.children.length > 0 ? `<button class="paste-block-remove" onclick="removePasteBlock('block-${id}')">✕ Remove</button>` : ''}
+    </div>
+    <textarea class="paste-textarea" id="${id}"
+      placeholder="Paste call summary, deal brief or transcript here…"
+      oninput="this.classList.toggle('has-content', this.value.trim().length > 0)"></textarea>`;
+  list.appendChild(block);
+}
+
+function removePasteBlock(blockId) {
+  const block = document.getElementById(blockId);
+  if (block) block.remove();
+  // Re-number remaining blocks
+  const list = document.getElementById('pasteList');
+  Array.from(list.children).forEach((b, i) => {
+    const label = b.querySelector('.paste-block-label span');
+    if (label) label.textContent = `Entry ${i + 1}`;
+  });
+}
+
+function getPasteText() {
+  const list = document.getElementById('pasteList');
+  const texts = Array.from(list.querySelectorAll('.paste-textarea'))
+    .map(t => t.value.trim())
+    .filter(Boolean);
+  if (!texts.length) return '';
+  if (texts.length === 1) return texts[0];
+  return texts.map((t, i) => `--- Pasted entry ${i + 1} ---\n\n${t}`).join('\n\n\n');
+}
+
+// ── Multi-file upload ──────────────────────────────────────────────────────
+let uploadedFiles = []; // array of { name, text }
+
+function renderFileList() {
+  const list = document.getElementById('fileList');
+  list.innerHTML = uploadedFiles.map((f, i) => `
+    <div class="file-item">
+      <span class="file-item-name">📄 ${f.name}</span>
+      <button class="file-item-remove" onclick="removeFile(${i})" title="Remove">✕</button>
+    </div>`).join('');
+  // Update upload zone hint
   const zone = document.getElementById('uploadZone');
+  zone.style.borderColor = uploadedFiles.length > 0 ? 'var(--neon-dim)' : '';
+}
 
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    modjoText = e.target.result;
-    statusEl.style.display = 'flex';
-    statusEl.className = 'upload-success';
-    statusEl.innerHTML = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> <span><strong>${file.name}</strong> uploaded — fields will auto-populate on generate</span>`;
-    zone.style.borderColor = 'var(--neon-dim)';
+function removeFile(index) {
+  uploadedFiles.splice(index, 1);
+  renderFileList();
+  if (uploadedFiles.length === 0) {
+    document.getElementById('uploadZone').style.borderColor = '';
+  }
+}
 
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error('Could not read ' + file.name));
+    reader.readAsText(file);
+  });
+}
+
+async function handleUpload(input) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+
+  for (const file of files) {
+    // Skip duplicates
+    if (uploadedFiles.find(f => f.name === file.name)) continue;
+    try {
+      const text = await readFileAsText(file);
+      uploadedFiles.push({ name: file.name, text });
+    } catch(e) {
+      console.warn('Could not read file:', file.name, e);
+    }
+  }
+
+  renderFileList();
+
+  // Auto-fill company name from first filename if empty
+  if (uploadedFiles.length === 1) {
     const companyInput = document.getElementById('companyName');
     if (!companyInput.value) {
-      const guess = file.name.replace(/[-_\.](deal|brief|modjo|summary).*/i,'').replace(/[-_]/g,' ').replace(/\.(txt|pdf|docx|md)$/i,'').trim();
+      const guess = uploadedFiles[0].name
+        .replace(/[-_\.](deal|brief|modjo|summary|transcript|call).*/i, '')
+        .replace(/[-_]/g, ' ')
+        .replace(/\.(txt|pdf|docx|md)$/i, '')
+        .trim();
       if (guess) companyInput.value = guess;
     }
-  };
-  reader.onerror = () => {
-    statusEl.style.display = 'flex';
-    statusEl.className = 'status-bar status-error';
-    statusEl.innerHTML = 'Could not read file. Try saving as .txt and re-uploading.';
-  };
-  reader.readAsText(file);
+  }
+
+  // Reset input so same files can be re-added after removal
+  input.value = '';
+}
+
+function getCombinedText() {
+  const pasteText = getPasteText();
+  const fileText = uploadedFiles.length === 1
+    ? uploadedFiles[0].text
+    : uploadedFiles.map((f, i) => `--- File ${i + 1}: ${f.name} ---\n\n${f.text}`).join('\n\n\n');
+
+  const parts = [pasteText, fileText].filter(Boolean);
+  if (!parts.length) return '';
+  if (parts.length === 1) return parts[0];
+  return `--- Pasted content ---\n\n${pasteText}\n\n\n--- Uploaded files ---\n\n${fileText}`;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialise first paste block
+  addPasteBlock();
+
   const zone = document.getElementById('uploadZone');
   if (!zone) return;
   zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
@@ -878,14 +1042,11 @@ document.addEventListener('DOMContentLoaded', () => {
   zone.addEventListener('drop', e => {
     e.preventDefault();
     zone.classList.remove('dragover');
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      const input = document.getElementById('modjoFile');
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      input.files = dt.files;
-      handleUpload(input);
-    }
+    const input = document.getElementById('modjoFile');
+    const dt = new DataTransfer();
+    Array.from(e.dataTransfer.files).forEach(f => dt.items.add(f));
+    input.files = dt.files;
+    handleUpload(input);
   });
 });
 
@@ -940,36 +1101,43 @@ async function generate() {
   document.getElementById('docContainer').style.display = 'none';
 
   try {
-    // ── Step 1: Parse call data ─────────────────────────────────────────────
+    // ── Step 1: Parse combined transcript/brief data ────────────────────────
     let callData = null;
+    const combinedText = getCombinedText();
 
-    if (modjoText) {
-      setStatus('Parsing Modjo deal brief…');
+    if (combinedText) {
+      const pasteCount = document.getElementById('pasteList').querySelectorAll('.paste-textarea').length;
+      const fileCount = uploadedFiles.length;
+      const totalSources = pasteCount + fileCount;
+      setStatus(`Parsing ${totalSources} source${totalSources > 1 ? 's' : ''}…`);
       try {
         callData = await callClaudeJSON(
-          `You are a sales intelligence assistant. Parse the provided Modjo deal brief text and extract structured data.
+          `You are a sales intelligence assistant for Moss, a spend management platform. Parse the provided sales documents (which may include discovery call transcripts, demo call transcripts, deal briefs, or email threads) and extract structured data to populate an executive summary.
+
+The exec summary will be read by a budget holder or decision-maker (e.g. FD, CFO) who may not have been present in any of the calls. Write all extracted content as if addressing someone unfamiliar with Moss — clear business language, no product jargon, no references to demos or calls.
+
 Return ONLY a JSON object with these exact keys:
 {
-  "stakeholders": [{"name":"","title":"","role":"sign_off|champion|user","description":"one sentence on their priorities and concerns"}],
-  "challenges": ["specific pain point as a concise bullet"],
-  "desiredOutcomes": ["specific desired outcome as a concise bullet"],
-  "invoiceVolume": number_or_null,
-  "cardCount": number_or_null,
-  "teamSize": number_or_null,
-  "monthlySpend": number_or_null,
+  "stakeholders": [{"name":"full name if known, otherwise role title","title":"role/title","role":"sign_off|champion|user","description":"one sentence on their priorities and concerns, written for an uninitiated reader"}],
+  "challenges": ["specific business pain point as a concise bullet — present tense, no mention of calls or demos"],
+  "desiredOutcomes": ["specific desired outcome as a concise bullet — what good looks like for this business"],
+  "preparedFor": "name and/or role of the FD or ultimate decision-maker this doc is for, or null",
   "dealSize": "string or null",
   "closeDate": "string or null",
-  "preparedFor": "name and/or role of the FD or decision-maker this doc is prepared for, or null",
   "riskFlags": ["key risk as a bullet"],
   "additionalContext": "1-2 sentence deal summary"
 }
-Extract as much as possible. For stakeholders: sign_off = FD/CEO/budget holder, champion = main contact driving the deal, user = end users.
+
+Important: Do NOT extract invoice volumes, card counts, team sizes or spend figures — these will be provided separately by the AE. Focus only on qualitative insights: who the stakeholders are, what the business problems are, and what outcomes they want.
+
+If multiple documents are provided, synthesise across all of them — later documents take precedence where there is conflicting qualitative information.
+
 Return ONLY valid JSON, no other text.`,
-          `Parse this Modjo deal brief:\n\n${modjoText}`
+          `Parse these sales documents and extract deal intelligence:\n\n${combinedText}`
         );
       } catch(e) {
-        console.warn('Modjo parse failed:', e);
-        setStatus('Could not parse Modjo file — continuing with manual inputs.', 'loading');
+        console.warn('Parse failed:', e);
+        setStatus('Could not parse files — continuing with manual inputs.', 'loading');
         callData = null;
       }
     } else if (callId) {
@@ -1023,12 +1191,6 @@ Limit to 2 stories (most relevant by industry), 1 best quote, up to 8 logos. Ret
     }
 
     // ── Step 3: Merge inputs ────────────────────────────────────────────────
-    if (callData?.invoiceVolume && !document.getElementById('invoiceVol').value)
-      document.getElementById('invoiceVol').value = callData.invoiceVolume;
-    if (callData?.cardCount && !document.getElementById('cardCount').value)
-      document.getElementById('cardCount').value = callData.cardCount;
-    if (callData?.teamSize && !document.getElementById('teamSize').value)
-      document.getElementById('teamSize').value = callData.teamSize;
     if (callData?.preparedFor && !document.getElementById('preparedFor').value)
       document.getElementById('preparedFor').value = callData.preparedFor;
 
@@ -1089,11 +1251,14 @@ Limit to 2 stories (most relevant by industry), 1 best quote, up to 8 logos. Ret
     // Warn AE if falling back on defaults
     if (usingDefaults || usingStakeholderDefaults) {
       const warnings = [];
-      if (usingStakeholderDefaults) warnings.push('stakeholders are placeholder defaults');
-      if (usingDefaults) warnings.push('some commercial figures use default estimates — check sidebar');
-      setStatus('⚠ Generated with fallbacks: ' + warnings.join('; ') + '. Review before sharing.', 'error');
+      if (usingStakeholderDefaults) warnings.push('stakeholder data is placeholder — upload transcripts or add manually');
+      if (usingDefaults) warnings.push('some commercial figures use defaults — check sidebar inputs');
+      setStatus('⚠ Review before sharing: ' + warnings.join('; '), 'error');
     } else {
-      setStatus(`Exec summary generated for ${company}`, 'success');
+      const srcLabel = uploadedFiles.length > 0 || getPasteText()
+        ? `${totalSources} source${totalSources > 1 ? 's' : ''}`
+        : 'Attention call';
+      setStatus(`Exec summary generated for ${company} from ${srcLabel}`, 'success');
     }
 
     renderDoc({
