@@ -1059,11 +1059,7 @@ async function callClaude(systemPrompt, userPrompt) {
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
       system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-      mcp_servers: [
-        { type: 'url', url: 'https://api.attention.tech/mcp', name: 'attention' },
-        { type: 'url', url: 'https://mcp.airtable.com/mcp', name: 'airtable' }
-      ]
+      messages: [{ role: 'user', content: userPrompt }]
     })
   });
   if (!resp.ok) throw new Error(`API error ${resp.status}`);
